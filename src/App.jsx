@@ -247,7 +247,7 @@ export default function App() {
   };
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden ambient-bg select-none">
+    <main className="relative w-screen w-full h-screen h-[100dvh] overflow-hidden ambient-bg select-none touch-none">
       {/* Visual Layer 1: Direct Spline iFrame Embed */}
       {viewMode === 'spline' && (
         <UserSpline 

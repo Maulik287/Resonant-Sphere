@@ -18,16 +18,16 @@ export default function AudioPrompt({ onInitialize }) {
       {/* Main Interactive Button Pill */}
       <button
         onClick={handleClick}
-        className="relative flex items-center gap-4 px-8 py-4 rounded-full bg-[#0d1424]/90 hover:bg-[#131d35] backdrop-blur-2xl border border-cyan-400/50 hover:border-cyan-300 shadow-[0_0_35px_rgba(6,182,212,0.35)] group-hover:shadow-[0_0_55px_rgba(6,182,212,0.6)] transition-all duration-300 transform group-hover:scale-[1.03] active:scale-[0.98]"
+        className="relative flex items-center gap-3 sm:gap-4 px-5 sm:px-8 py-3.5 sm:py-4 rounded-full bg-[#0d1424]/90 hover:bg-[#131d35] backdrop-blur-2xl border border-cyan-400/50 hover:border-cyan-300 shadow-[0_0_35px_rgba(6,182,212,0.35)] group-hover:shadow-[0_0_55px_rgba(6,182,212,0.6)] transition-all duration-300 transform group-hover:scale-[1.03] active:scale-[0.98] max-w-[92vw]"
       >
-        <div className="w-10 h-10 rounded-full bg-cyan-500/25 border border-cyan-400/50 flex items-center justify-center text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.4)] group-hover:scale-110 transition-transform">
-          <Play className="w-4 h-4 fill-cyan-300 text-cyan-300 ml-0.5" />
+        <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-cyan-500/25 border border-cyan-400/50 flex items-center justify-center text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.4)] group-hover:scale-110 transition-transform">
+          <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-cyan-300 text-cyan-300 ml-0.5" />
         </div>
         <div className="flex flex-col text-left">
-          <span className="text-sm font-semibold tracking-wider uppercase text-white drop-shadow">
-            Click to Initialize Audio
+          <span className="text-xs sm:text-sm font-semibold tracking-wider uppercase text-white drop-shadow">
+            Tap to Initialize Audio
           </span>
-          <span className="text-xs text-cyan-200/70 font-light mt-0.5">
+          <span className="text-[11px] sm:text-xs text-cyan-200/70 font-light mt-0.5 truncate max-w-[210px] sm:max-w-none">
             Enter the 432 Hz generative harmonic field
           </span>
         </div>
