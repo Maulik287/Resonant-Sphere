@@ -92,33 +92,36 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
         }}
       />
 
-      {/* Floating Sphere Container (Responsive scaling: slightly smaller on mobile to display complete sphere) */}
-      <div className="w-full h-full absolute inset-0 origin-center pointer-events-none overflow-hidden scale-[0.78] sm:scale-[0.82] md:scale-100 -translate-y-6 md:translate-y-0 transition-transform duration-300">
-        <div 
-          ref={containerRef} 
-          className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden"
-          style={{ willChange: 'transform' }}
-        >
-          <iframe 
-            src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
-            frameBorder="0" 
-            width="100%" 
-            title="Particle Sphere"
-            className="w-full absolute left-0 border-0 pointer-events-auto"
-            style={{
-              top: '-65px',
-              height: 'calc(100% + 130px)'
-            }}
-            allow="autoplay; fullscreen"
-          />
-
-          {/* Safety overlay to ensure zero watermark bleed */}
+      {/* 1. Scale & Position Wrapper */}
+      <div className="w-full h-full absolute inset-0 origin-center pointer-events-none overflow-hidden scale-[0.62] sm:scale-[0.75] md:scale-100 -translate-y-8 sm:-translate-y-4 md:translate-y-0 transition-transform duration-300">
+        {/* 2. Wide Canvas Center Alignment Wrapper (Gives Spline a wider aspect ratio on mobile so sides never clip) */}
+        <div className="w-[175vw] sm:w-[140vw] md:w-full h-full absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 origin-center pointer-events-none overflow-hidden">
+          {/* 3. Floating Motion Target */}
           <div 
-            className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
-            style={{
-              background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
-            }}
-          />
+            ref={containerRef} 
+            className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden"
+            style={{ willChange: 'transform' }}
+          >
+            <iframe 
+              src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
+              frameBorder="0" 
+              title="Particle Sphere"
+              className="w-full absolute left-0 border-0 pointer-events-auto"
+              style={{
+                top: '-65px',
+                height: 'calc(100% + 130px)'
+              }}
+              allow="autoplay; fullscreen"
+            />
+
+            {/* Safety overlay to ensure zero watermark bleed */}
+            <div 
+              className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
+              }}
+            />
+          </div>
         </div>
       </div>
     </div>
