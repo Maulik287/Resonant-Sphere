@@ -23,6 +23,14 @@
   }
 }
 
+/* Safe area insets for mobile notches, dynamic islands, and home bars */
+.safe-area-inset {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
 /* Hide scrollbar for clean horizontal swipe on mobile */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -30,6 +38,14 @@
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Mobile smooth touch carousel */
+.touch-carousel {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
 }
 
 /* Custom Glassmorphism HUD Pill */

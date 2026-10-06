@@ -33,6 +33,10 @@ export default function App() {
 
   // 1. Audio Initialization
   const handleInitializeAudio = async () => {
+    if (audioInitialized) return;
+    try {
+      soundEngine.unlockAudioSync();
+    } catch {}
     setAudioInitialized(true);
     setIsMusicPlaying(true);
     try {
@@ -45,17 +49,26 @@ export default function App() {
 
   // 2. Frequency, Preset & Music Change handlers
   const handleFreqChange = (freq) => {
+    try {
+      soundEngine.unlockAudioSync();
+    } catch {}
     setActiveFreq(freq);
     soundEngine.setBaseFrequency(freq);
   };
 
   const handlePresetChange = (presetKey) => {
+    try {
+      soundEngine.unlockAudioSync();
+    } catch {}
     setActivePreset(presetKey);
     soundEngine.setPreset(presetKey);
   };
 
   const handleUploadAudio = async (file) => {
     try {
+      try {
+        soundEngine.unlockAudioSync();
+      } catch {}
       if (!audioInitialized) {
         setAudioInitialized(true);
       }
@@ -77,6 +90,9 @@ export default function App() {
   };
 
   const handleToggleMusic = async () => {
+    try {
+      soundEngine.unlockAudioSync();
+    } catch {}
     if (!audioInitialized) {
       await handleInitializeAudio();
       return;
@@ -157,6 +173,9 @@ export default function App() {
 
   const handlePointerDown = () => {
     if (!audioInitialized) {
+      try {
+        soundEngine.unlockAudioSync();
+      } catch {}
       handleInitializeAudio();
     }
     isHolding.current = true;
@@ -247,7 +266,7 @@ export default function App() {
   };
 
   return (
-    <main className="relative w-screen w-full h-screen h-[100dvh] overflow-hidden ambient-bg select-none touch-none">
+    <main className="fixed inset-0 w-full h-full h-[100dvh] overflow-hidden ambient-bg select-none touch-none">
       {/* Visual Layer 1: Direct Spline iFrame Embed */}
       {viewMode === 'spline' && (
         <UserSpline 

@@ -111,9 +111,9 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
 
         {/* Safety overlay to ensure zero watermark bleed */}
         <div 
-          className="absolute bottom-0 right-0 w-48 h-16 pointer-events-none z-10"
+          className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
           style={{
-            background: 'linear-gradient(to top left, #07090f 60%, transparent 100%)'
+            background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
           }}
         />
       </div>

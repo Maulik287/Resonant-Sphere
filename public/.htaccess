@@ -59,9 +59,15 @@
   ExpiresByType image/svg+xml "access plus 1 year"
 </IfModule>
 
-# 5. Security Headers
+# 5. Security & CORS Headers
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
   Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # Allow cross-origin audio streaming for WebAudio routing
+  <FilesMatch "\.(wav|mp3|m4a|webm|ogg)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+  </FilesMatch>
 </IfModule>

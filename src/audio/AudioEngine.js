@@ -8,6 +8,7 @@ export const PRESETS = {
     name: 'Into The Loam',
     badge: 'DEEP SPACE DRONE',
     file: `${base}audio/Into The Loam(Deep Space Drone).wav`,
+    gain: 2.4, // Sub-bass drone harmonic gain boost for clear desktop/laptop speaker audibility
     description: 'Dark, rumbling cinematic sub-bass drone (Hans Zimmer style) with cosmic tape warmth and low brass resonance.'
   },
   solarWind: {
@@ -15,6 +16,7 @@ export const PRESETS = {
     name: 'Mind River',
     badge: 'SOLAR WIND ARPS',
     file: `${base}audio/Mind River(Solar Wind).wav`,
+    gain: 1.0, // Mastered loud & punchy (400Hz - 2500Hz analog modular cascade)
     description: 'Energetic pulsing bassline and rapid analog modular synth arpeggio cascade.'
   },
   binauralDelta: {
@@ -22,6 +24,7 @@ export const PRESETS = {
     name: 'Zen Temple Serenity',
     badge: 'BINAURAL DELTA & BOWLS',
     file: `${base}audio/Zen Temple Serenity(Binaural Delta & Tibetan Bowls).wav`,
+    gain: 2.1, // Ambient oceanic wash & singing bowl overtones gain boost
     description: 'Scientific 2.5Hz delta brainwave harmonics, rhythmic oceanic surf wash, and Tibetan singing bowl strikes.'
   },
   crystallineSanctuary: {
@@ -29,9 +32,31 @@ export const PRESETS = {
     name: 'Celestial Dreamscape',
     badge: 'CRYSTALLINE SANCTUARY',
     file: `${base}audio/Celestial Dreamscape(Crystalline Sanctuary).wav`,
+    gain: 2.3, // Delicate music box & cathedral choir acoustics gain boost
     description: 'Celestial music box, high-register crystalline bells, and ethereal cathedral choir acoustics.'
   }
 };
+
+function getSafeAudioUrl(filePath) {
+  const lastSlash = filePath.lastIndexOf('/');
+  if (lastSlash === -1) return encodeURIComponent(filePath);
+  const dir = filePath.substring(0, lastSlash + 1);
+  const file = filePath.substring(lastSlash + 1);
+  return dir + encodeURIComponent(file);
+}
+
+function applyAudioCrossOrigin(audio, url) {
+  if (typeof window !== 'undefined' && url) {
+    try {
+      const parsed = new URL(url, window.location.href);
+      if (parsed.origin !== window.location.origin) {
+        audio.crossOrigin = 'anonymous';
+      }
+    } catch (e) {
+      // Relative or local URL - same origin, no crossOrigin needed
+    }
+  }
+}
 
 export const FREQUENCIES = [
   { 
@@ -92,6 +117,19 @@ export const FREQUENCIES = [
   }
 ];
 
+const isMobileDevice = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+};
+
+const MOBILE_GAIN_MAP = {
+  deepSpace: 1.0,             // 2.4 / 2.4 = 1.0 (Full volume for deep sub drone)
+  crystallineSanctuary: 0.95,  // 2.3 / 2.4 = 0.95 (Celestial bells & choir)
+  binauralDelta: 0.88,         // 2.1 / 2.4 = 0.88 (Tibetan bowls & delta waves)
+  solarWind: 0.45              // 1.0 / 2.4 = 0.45 (Mind River arps mastered loud, scaled so all tracks balance)
+};
+
 export class SoundEngine {
   constructor() {
     this.isInitialized = false;
@@ -100,6 +138,8 @@ export class SoundEngine {
     this.baseFilterCutoff = 2500;
     this.currentPresetKey = 'deepSpace';
     this.preset = PRESETS.deepSpace;
+    this.masterVolume = 1.0;
+    this.isMobile = isMobileDevice();
 
     // Timers
     this.loopTimers = [];
@@ -107,6 +147,12 @@ export class SoundEngine {
 
     // Audio players for Google Flow Music tracks
     this.players = {};
+
+    // Pre-instantiate players so they can be primed synchronously on first user gesture
+    if (typeof window !== 'undefined' && typeof Audio !== 'undefined') {
+      this.createPlayers();
+      this.setupVisibilityListeners();
+    }
 
     // Live Telemetry
     this.telemetry = {
@@ -130,13 +176,125 @@ export class SoundEngine {
     this.pentatonicRatios = [1, 9/8, 5/4, 3/2, 5/3, 2, 9/4, 5/2];
   }
 
+  createPlayers() {
+    if (typeof Audio === 'undefined') return;
+    Object.entries(PRESETS).forEach(([key, preset]) => {
+      if (this.players[key]) return;
+      const audio = new Audio();
+      const safeUrl = getSafeAudioUrl(preset.file);
+      applyAudioCrossOrigin(audio, safeUrl);
+      audio.src = safeUrl;
+      audio.loop = true;
+      // Preload active preset; lazy-load secondary tracks on mobile to prevent memory & bandwidth saturation
+      audio.preload = (key === this.currentPresetKey || !this.isMobile) ? 'auto' : 'metadata';
+      audio.playbackRate = 1.0;
+      audio.volume = 1.0;
+      audio.muted = false;
+      // Mobile Safari / Chrome inline audio playback attributes
+      audio.setAttribute('playsinline', '');
+      audio.setAttribute('webkit-playsinline', '');
+      audio.setAttribute('x-webkit-airplay', 'allow');
+
+      this.players[key] = {
+        element: audio,
+        source: null,
+        gainNode: null,
+        presetKey: key
+      };
+    });
+  }
+
+  setupVisibilityListeners() {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.isInitialized && this.isMusicActive) {
+        const rawCtx = Tone.context?.rawContext || Tone.getContext()?.rawContext;
+        if (rawCtx && (rawCtx.state === 'suspended' || rawCtx.state === 'interrupted')) {
+          rawCtx.resume().catch(() => {});
+        }
+        const activePlayer = this.players[this.currentPresetKey];
+        if (activePlayer && activePlayer.element && activePlayer.element.paused) {
+          activePlayer.element.play().catch(() => {});
+        }
+      }
+    });
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pageshow', () => {
+        if (this.isInitialized && this.isMusicActive) {
+          const rawCtx = Tone.context?.rawContext || Tone.getContext()?.rawContext;
+          if (rawCtx && (rawCtx.state === 'suspended' || rawCtx.state === 'interrupted')) {
+            rawCtx.resume().catch(() => {});
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Synchronous audio unlock executed strictly inside a user tap/click/touch gesture.
+   * Resolves mobile browser autoplay restrictions (iOS Safari & Android WebKit/Chrome)
+   * by invoking .play() before the transient user activation token expires.
+   */
+  unlockAudioSync() {
+    // 1. Force iOS audio session to 'playback' (bypasses physical hardware silent switch on iOS 16.4+)
+    if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+      try {
+        navigator.audioSession.type = 'playback';
+      } catch (e) {}
+    }
+
+    // 2. Synchronously resume AudioContext for Tone.js
+    try {
+      const rawCtx = Tone.context?.rawContext || Tone.getContext()?.rawContext;
+      if (rawCtx && rawCtx.state === 'suspended') {
+        rawCtx.resume();
+      }
+    } catch (e) {}
+
+    // 3. Ensure preset players are instantiated
+    this.createPlayers();
+
+    // 4. Synchronously trigger .play() directly on active preset element!
+    // Important: No dummy silent audio here so the single iOS user gesture token is 100% dedicated to the real music!
+    const activePlayer = this.players[this.currentPresetKey];
+    if (activePlayer && activePlayer.element && this.isMusicActive) {
+      try {
+        activePlayer.element.muted = false;
+        activePlayer.element.playbackRate = 1.0;
+        if (this.isMobile) {
+          const vol = (MOBILE_GAIN_MAP[this.currentPresetKey] || 1.0) * (this.masterVolume ?? 1.0);
+          activePlayer.element.volume = Math.max(0, Math.min(1.0, vol));
+        }
+        if (activePlayer.element.paused) {
+          const playPromise = activePlayer.element.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch((err) => {
+              console.warn('Sync play attempt notice:', err);
+            });
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
   async initialize() {
     if (this.isInitialized) return;
 
+    // Ensure audio session is in playback mode
+    if (typeof navigator !== 'undefined' && 'audioSession' in navigator) {
+      try {
+        navigator.audioSession.type = 'playback';
+      } catch (e) {}
+    }
+
     // 1. AudioContext setup
     await Tone.start();
-    if (Tone.context.state !== 'running') {
-      await Tone.context.resume();
+    const rawCtx = Tone.context?.rawContext || Tone.getContext()?.rawContext;
+    if (rawCtx && rawCtx.state !== 'running') {
+      try {
+        await rawCtx.resume();
+      } catch (e) {}
     }
     Tone.context.lookAhead = 0.05;
 
@@ -146,8 +304,7 @@ export class SoundEngine {
     // 2. Master Gain (Clean transparent headroom)
     this.masterGain = new Tone.Gain(1.0).toDestination();
 
-    // 3. Audio Spectrum Analyser for Real-Time Sphere Vibration & Floating
-    const rawCtx = Tone.context.rawContext || Tone.getContext().rawContext;
+    // 3. Audio Spectrum Analyser
     if (rawCtx) {
       this.analyser = rawCtx.createAnalyser();
       this.analyser.fftSize = 128; // Snappy 64 frequency bands
@@ -164,45 +321,36 @@ export class SoundEngine {
     // 4. Transparent Stereo Panning & Natural Clean Low-Pass Filter on Song Path
     this.panner = new Tone.Panner(0);
     this.mainFilter = new Tone.Filter({
-      frequency: this.baseFilterCutoff, // Mode-responsive cutoff (e.g. 500Hz for 174Hz, 2500Hz for 432Hz, 12000Hz for 852Hz)
+      frequency: this.baseFilterCutoff,
       type: 'lowpass',
       rolloff: -12,
-      Q: 0.7 // Neutral Butterworth curve, smooth and warm
+      Q: 0.7
     });
 
     this.mainFilter.connect(this.panner);
     this.panner.connect(this.masterGain);
 
-    // 5. Setup Google Flow Music Players routed cleanly into WebAudio
-    Object.entries(PRESETS).forEach(([key, preset]) => {
-      const audio = new Audio();
-      audio.src = encodeURI(preset.file);
-      audio.loop = true;
-      audio.crossOrigin = 'anonymous';
-      audio.preload = 'auto';
-      audio.playbackRate = 1.0; // Strictly 1.0
-
-      let sourceNode = null;
-      let gainNode = null;
-
-      try {
-        if (rawCtx) {
-          sourceNode = rawCtx.createMediaElementSource(audio);
-          gainNode = rawCtx.createGain();
-          gainNode.gain.value = 0; // muted initially until selected
-          sourceNode.connect(gainNode);
-          Tone.connect(gainNode, this.mainFilter);
+    // 5. Connect players cleanly
+    this.createPlayers();
+    if (!this.isMobile) {
+      // DESKTOP ONLY: WebAudio routing for DSP filter, stereo panning & calibrated gain
+      Object.entries(this.players).forEach(([key, player]) => {
+        if (rawCtx && !player.source) {
+          try {
+            player.source = rawCtx.createMediaElementSource(player.element);
+            player.gainNode = rawCtx.createGain();
+            player.gainNode.gain.value = 0; // muted initially until selected
+            player.source.connect(player.gainNode);
+            Tone.connect(player.gainNode, this.mainFilter);
+          } catch (err) {
+            console.warn(`WebAudio routing for ${key} notice:`, err);
+          }
         }
-      } catch (err) {
-        console.warn(`WebAudio routing for ${key} notice:`, err);
-      }
-
-      this.players[key] = {
-        element: audio,
-        source: sourceNode,
-        gainNode: gainNode
-      };
-    });
+      });
+    }
+    // Note for Mobile: Do NOT call createMediaElementSource!
+    // Leaving audio element unattached allows native HTML5 audio to route directly
+    // through the phone speaker, completely bypassing the iOS hardware Silent Switch and WebAudio muting!
 
     this.isInitialized = true;
     this.isPlaying = true;
@@ -241,23 +389,26 @@ export class SoundEngine {
     const audio = new Audio();
     audio.src = objectUrl;
     audio.loop = true;
-    audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
     audio.playbackRate = 1.0; // Strictly 1.0 normal playback speed
+    audio.volume = 1.0;
+    audio.muted = false;
+    audio.setAttribute('playsinline', '');
+    audio.setAttribute('webkit-playsinline', '');
 
     let sourceNode = null;
     let gainNode = null;
 
-    try {
-      if (rawCtx) {
+    if (!this.isMobile && rawCtx) {
+      try {
         sourceNode = rawCtx.createMediaElementSource(audio);
         gainNode = rawCtx.createGain();
         gainNode.gain.value = 0;
         sourceNode.connect(gainNode);
         Tone.connect(gainNode, this.mainFilter);
+      } catch (err) {
+        console.warn('WebAudio routing for user upload notice:', err);
       }
-    } catch (err) {
-      console.warn('WebAudio routing for user upload notice:', err);
     }
 
     this.players.userUpload = {
@@ -287,12 +438,10 @@ export class SoundEngine {
     if (!this.isInitialized) return;
 
     const rawCtx = Tone.context.rawContext || Tone.getContext().rawContext;
-    const now = rawCtx ? rawCtx.currentTime : 0;
-
-    // Crossfade out other players
+    const now = rawCtx ? rawCtx.currentTime : 0;    // Crossfade out other players
     Object.entries(this.players).forEach(([key, player]) => {
       if (key !== presetKey) {
-        if (player.gainNode && rawCtx) {
+        if (!this.isMobile && player.gainNode && rawCtx) {
           player.gainNode.gain.setTargetAtTime(0, now, 0.4);
         } else {
           player.element.volume = 0;
@@ -308,17 +457,23 @@ export class SoundEngine {
     // Crossfade in active player
     const activePlayer = this.players[presetKey];
     if (activePlayer) {
-      // Strictly lock playback rate to 1.0 (100% normal speed)
+      activePlayer.element.muted = false;
       activePlayer.element.playbackRate = 1.0;
+      const targetGain = presetObj.gain || 1.0;
 
       if (this.isMusicActive) {
-        activePlayer.element.play().catch((e) => console.warn('Audio play trigger:', e));
-        if (activePlayer.gainNode && rawCtx) {
+        if (!this.isMobile && activePlayer.gainNode && rawCtx) {
+          // DESKTOP: Web Audio routing with calibrated boost gains
+          activePlayer.element.volume = 1.0;
+          activePlayer.element.play().catch((e) => console.warn('Audio play trigger:', e));
           activePlayer.gainNode.gain.cancelScheduledValues(now);
           activePlayer.gainNode.gain.setValueAtTime(activePlayer.gainNode.gain.value, now);
-          activePlayer.gainNode.gain.setTargetAtTime(1.0, now, 0.5);
+          activePlayer.gainNode.gain.setTargetAtTime(targetGain, now, 0.4);
         } else {
-          activePlayer.element.volume = 1.0;
+          // MOBILE: Native direct audio playback to phone speakers
+          const vol = (MOBILE_GAIN_MAP[presetKey] || 1.0) * (this.masterVolume ?? 1.0);
+          activePlayer.element.volume = Math.max(0, Math.min(1.0, vol));
+          activePlayer.element.play().catch((e) => console.warn('Mobile audio play trigger:', e));
         }
       }
     }
@@ -329,7 +484,8 @@ export class SoundEngine {
     this.telemetry.baseFreq = freq;
 
     const freqObj = FREQUENCIES.find((f) => f.value === freq) || FREQUENCIES[2];
-    this.baseFilterCutoff = freqObj.cutoff;
+    // Keep a healthy minimum cutoff of 850 Hz so higher-register presets (bells, bowls) are never silenced
+    this.baseFilterCutoff = Math.max(850, freqObj.cutoff);
 
     // 1. Strictly lock song playback rate to 1.0 - never speed up or slow down
     Object.values(this.players).forEach((p) => {
@@ -341,7 +497,6 @@ export class SoundEngine {
     if (!this.isInitialized) return;
 
     // 2. Low-Pass Filter shaping on the song path according to frequency mode:
-    // 174Hz: ~500Hz warm submerged | 432Hz: ~2500Hz neutral | 528Hz: ~6000Hz clear open | 852Hz: ~12000Hz airy
     if (this.mainFilter) {
       this.mainFilter.frequency.rampTo(this.baseFilterCutoff, 0.35);
       this.telemetry.currentFilterFreq = Math.round(this.baseFilterCutoff);
@@ -352,13 +507,13 @@ export class SoundEngine {
     this.isMusicActive = false;
     this.telemetry.isMusicPlaying = false;
 
-    const rawCtx = Tone.context.rawContext || Tone.getContext().rawContext;
+    const rawCtx = Tone.context.rawContext || Tone.getContext()?.rawContext;
     const now = rawCtx ? rawCtx.currentTime : 0;
 
     // Immediately stop and mute ALL audio players
     Object.values(this.players).forEach((player) => {
       try {
-        if (player.gainNode && rawCtx) {
+        if (!this.isMobile && player.gainNode && rawCtx) {
           player.gainNode.gain.cancelScheduledValues(now);
           player.gainNode.gain.setValueAtTime(0, now);
         } else {
@@ -381,19 +536,25 @@ export class SoundEngine {
       return true;
     }
 
-    const rawCtx = Tone.context.rawContext || Tone.getContext().rawContext;
+    const rawCtx = Tone.context.rawContext || Tone.getContext()?.rawContext;
     const now = rawCtx ? rawCtx.currentTime : 0;
     const activePlayer = this.players[this.currentPresetKey];
 
     if (activePlayer) {
+      activePlayer.element.muted = false;
       activePlayer.element.playbackRate = 1.0; // Strictly 1.0 normal speed
-      activePlayer.element.play().catch((e) => console.warn('Audio play trigger:', e));
-      if (activePlayer.gainNode && rawCtx) {
+      const targetGain = this.preset?.gain || 1.0;
+
+      if (!this.isMobile && activePlayer.gainNode && rawCtx) {
+        activePlayer.element.volume = 1.0;
+        activePlayer.element.play().catch((e) => console.warn('Audio play trigger:', e));
         activePlayer.gainNode.gain.cancelScheduledValues(now);
         activePlayer.gainNode.gain.setValueAtTime(activePlayer.gainNode.gain.value, now);
-        activePlayer.gainNode.gain.setTargetAtTime(1.0, now, 0.25);
+        activePlayer.gainNode.gain.setTargetAtTime(targetGain, now, 0.25);
       } else {
-        activePlayer.element.volume = 1.0;
+        const vol = (MOBILE_GAIN_MAP[this.currentPresetKey] || 1.0) * (this.masterVolume ?? 1.0);
+        activePlayer.element.volume = Math.max(0, Math.min(1.0, vol));
+        activePlayer.element.play().catch((e) => console.warn('Mobile audio play trigger:', e));
       }
     }
 
@@ -485,12 +646,20 @@ export class SoundEngine {
   }
 
   setMasterVolume(volumeNormalized) {
-    if (!this.isInitialized || !this.masterGain) return;
-    const gainValue = Math.max(0, Math.min(1.0, volumeNormalized));
-    try {
-      this.masterGain.gain.rampTo(gainValue, 0.05);
-    } catch (e) {
-      this.masterGain.gain.value = gainValue;
+    this.masterVolume = Math.max(0, Math.min(1.0, volumeNormalized));
+    if (this.masterGain) {
+      try {
+        this.masterGain.gain.rampTo(this.masterVolume, 0.05);
+      } catch (e) {
+        this.masterGain.gain.value = this.masterVolume;
+      }
+    }
+    const activePlayer = this.players[this.currentPresetKey];
+    if (activePlayer && activePlayer.element) {
+      if (this.isMobile || !activePlayer.gainNode) {
+        const vol = (MOBILE_GAIN_MAP[this.currentPresetKey] || 1.0) * this.masterVolume;
+        activePlayer.element.volume = Math.max(0, Math.min(1.0, vol));
+      }
     }
   }
 

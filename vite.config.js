@@ -9,6 +9,10 @@ export default defineConfig({
     tailwindcss(),
     react()
   ],
+  server: {
+    host: true,
+    cors: true
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
