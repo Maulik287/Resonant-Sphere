@@ -33,7 +33,8 @@ export default function ParticleSphere({
     // Generate 3D Spherical Particles
     const PARTICLE_COUNT = 1400;
     const particles = [];
-    const baseRadius = Math.min(width, height) * 0.28;
+    const isMobile = width < 768;
+    const baseRadius = Math.min(width, height) * (isMobile ? 0.22 : 0.28);
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       // Golden spiral distribution on sphere
@@ -114,7 +115,7 @@ export default function ParticleSphere({
 
       const fov = 420;
       const centerX = width / 2;
-      const centerY = height / 2;
+      const centerY = isMobile ? height / 2 - 22 : height / 2;
 
       // Render Shockwave Ring on release
       if (shockwaveAlpha > 0.01) {

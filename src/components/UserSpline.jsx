@@ -66,7 +66,9 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
         const auraSizeMult = 1.0 + smoothFreqFactor * 0.15;
         const auraBreath = (1 + Math.sin(time * 0.7) * 0.08 * floatFactor) * auraSizeMult;
         const auraOpacity = 0.15 + (0.2 + smoothFreqFactor * 0.1) * floatFactor;
-        auraRef.current.style.transform = `translate(-50%, -50%) scale(${auraBreath.toFixed(3)})`;
+        const isMobile = window.innerWidth < 768;
+        const yOffset = isMobile ? '-56%' : '-50%';
+        auraRef.current.style.transform = `translate(-50%, ${yOffset}) scale(${auraBreath.toFixed(3)})`;
         auraRef.current.style.opacity = auraOpacity.toFixed(3);
       }
 
@@ -82,7 +84,7 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
       {/* Soft Ethereal Celestial Aura */}
       <div 
         ref={auraRef}
-        className="absolute top-1/2 left-1/2 w-[550px] h-[550px] rounded-full pointer-events-none blur-[140px] transition-transform duration-700 ease-out"
+        className="absolute top-1/2 left-1/2 w-[380px] h-[380px] md:w-[550px] md:h-[550px] rounded-full pointer-events-none blur-[100px] md:blur-[140px] transition-transform duration-700 ease-out"
         style={{
           background: 'radial-gradient(circle, rgba(6,182,212,0.35) 0%, rgba(99,102,241,0.2) 50%, transparent 75%)',
           opacity: 0.15,
@@ -90,32 +92,34 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
         }}
       />
 
-      {/* Floating Sphere Container (with watermark crop) */}
-      <div 
-        ref={containerRef} 
-        className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden"
-        style={{ willChange: 'transform' }}
-      >
-        <iframe 
-          src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
-          frameBorder="0" 
-          width="100%" 
-          title="Particle Sphere"
-          className="w-full absolute left-0 border-0 pointer-events-auto"
-          style={{
-            top: '-65px',
-            height: 'calc(100% + 130px)'
-          }}
-          allow="autoplay; fullscreen"
-        />
-
-        {/* Safety overlay to ensure zero watermark bleed */}
+      {/* Floating Sphere Container (Responsive scaling: slightly smaller on mobile to display complete sphere) */}
+      <div className="w-full h-full absolute inset-0 origin-center pointer-events-none overflow-hidden scale-[0.78] sm:scale-[0.82] md:scale-100 -translate-y-6 md:translate-y-0 transition-transform duration-300">
         <div 
-          className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
-          style={{
-            background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
-          }}
-        />
+          ref={containerRef} 
+          className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden"
+          style={{ willChange: 'transform' }}
+        >
+          <iframe 
+            src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
+            frameBorder="0" 
+            width="100%" 
+            title="Particle Sphere"
+            className="w-full absolute left-0 border-0 pointer-events-auto"
+            style={{
+              top: '-65px',
+              height: 'calc(100% + 130px)'
+            }}
+            allow="autoplay; fullscreen"
+          />
+
+          {/* Safety overlay to ensure zero watermark bleed */}
+          <div 
+            className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
+            }}
+          />
+        </div>
       </div>
     </div>
   );
