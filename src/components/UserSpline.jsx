@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 /**
  * USER SPLINE COMPONENT (Floating Sphere Connected to Music State)
+ * Displays the complete 3D Resonant Particle Sphere without side clipping on mobile or desktop.
  * Floats gently when music is playing.
  * Gracefully settles and completely stops floating when music is stopped.
  */
@@ -10,6 +11,23 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
   const auraRef = useRef(null);
   const isPlayingRef = useRef(isMusicPlaying);
   const activeFreqRef = useRef(activeFreq);
+
+  // Responsive screen size tracking for pixel-perfect mobile sphere scaling
+  const [screenSize, setScreenSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    height: typeof window !== 'undefined' ? window.innerHeight : 800
+  }));
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Keep refs updated without restarting the animation loop
   useEffect(() => {
@@ -67,7 +85,7 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
         const auraBreath = (1 + Math.sin(time * 0.7) * 0.08 * floatFactor) * auraSizeMult;
         const auraOpacity = 0.15 + (0.2 + smoothFreqFactor * 0.1) * floatFactor;
         const isMobile = window.innerWidth < 768;
-        const yOffset = isMobile ? '-56%' : '-50%';
+        const yOffset = isMobile ? 'calc(-50% - 24px)' : '-50%';
         auraRef.current.style.transform = `translate(-50%, ${yOffset}) scale(${auraBreath.toFixed(3)})`;
         auraRef.current.style.opacity = auraOpacity.toFixed(3);
       }
@@ -79,12 +97,21 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
     return () => cancelAnimationFrame(animId);
   }, []);
 
+  const isMobile = screenSize.width < 768;
+  // 660px internal virtual canvas width provides ample horizontal FOV for Spline's Orthographic Camera
+  // so the ~490px particle sphere is 100% visible with zero cropping on any phone.
+  const virtualWidth = 660;
+  const mobileScale = isMobile ? screenSize.width / virtualWidth : 1;
+  const internalHeight = isMobile 
+    ? Math.round(screenSize.height / mobileScale) + 160 
+    : 0;
+
   return (
     <div className="w-full h-full absolute inset-0 overflow-hidden flex items-center justify-center pointer-events-none">
       {/* Soft Ethereal Celestial Aura */}
       <div 
         ref={auraRef}
-        className="absolute top-1/2 left-1/2 w-[380px] h-[380px] md:w-[550px] md:h-[550px] rounded-full pointer-events-none blur-[100px] md:blur-[140px] transition-transform duration-700 ease-out"
+        className="absolute top-1/2 left-1/2 w-[340px] h-[340px] md:w-[550px] md:h-[550px] rounded-full pointer-events-none blur-[90px] md:blur-[140px] transition-transform duration-700 ease-out"
         style={{
           background: 'radial-gradient(circle, rgba(6,182,212,0.35) 0%, rgba(99,102,241,0.2) 50%, transparent 75%)',
           opacity: 0.15,
@@ -92,37 +119,56 @@ export default function UserSpline({ isMusicPlaying = false, activeFreq = 432 })
         }}
       />
 
-      {/* 1. Scale & Position Wrapper */}
-      <div className="w-full h-full absolute inset-0 origin-center pointer-events-none overflow-hidden scale-[0.62] sm:scale-[0.75] md:scale-100 -translate-y-8 sm:-translate-y-4 md:translate-y-0 transition-transform duration-300">
-        {/* 2. Wide Canvas Center Alignment Wrapper (Gives Spline a wider aspect ratio on mobile so sides never clip) */}
-        <div className="w-[175vw] sm:w-[140vw] md:w-full h-full absolute left-1/2 -translate-x-1/2 md:left-0 md:translate-x-0 origin-center pointer-events-none overflow-hidden">
-          {/* 3. Floating Motion Target */}
-          <div 
-            ref={containerRef} 
-            className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden"
-            style={{ willChange: 'transform' }}
-          >
-            <iframe 
-              src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
-              frameBorder="0" 
-              title="Particle Sphere"
-              className="w-full absolute left-0 border-0 pointer-events-auto"
-              style={{
-                top: '-65px',
-                height: 'calc(100% + 130px)'
-              }}
-              allow="autoplay; fullscreen"
-            />
-
-            {/* Safety overlay to ensure zero watermark bleed */}
-            <div 
-              className="absolute bottom-0 right-0 w-24 h-8 sm:w-44 sm:h-14 pointer-events-none z-10"
-              style={{
-                background: 'linear-gradient(to top left, #07090f 70%, transparent 100%)'
-              }}
-            />
-          </div>
+      {/* Floating Sphere Motion Target */}
+      <div 
+        ref={containerRef} 
+        className="w-full h-full absolute inset-0 origin-center pointer-events-auto overflow-hidden flex items-center justify-center"
+        style={{ willChange: 'transform' }}
+      >
+        {/* Responsive Canvas Scaler:
+            On Mobile: Scales the 660px wide Spline canvas precisely to 100vw,
+            ensuring the entire circular sphere fits with natural side padding, 
+            and eliminating any dark rectangular boundaries or side cropping.
+            On Desktop: Extends 100% width and height seamlessly.
+        */}
+        <div
+          className="absolute flex items-center justify-center pointer-events-auto"
+          style={
+            isMobile
+              ? {
+                  width: `${virtualWidth}px`,
+                  height: `${internalHeight}px`,
+                  transform: `scale(${mobileScale})`,
+                  transformOrigin: 'center center',
+                  top: '50%',
+                  left: '50%',
+                  marginTop: `${Math.round(-internalHeight / 2) - 24}px`,
+                  marginLeft: `${Math.round(-virtualWidth / 2)}px`,
+                }
+              : {
+                  width: '100%',
+                  height: 'calc(100% + 130px)',
+                  top: '-65px',
+                  left: 0,
+                }
+          }
+        >
+          <iframe 
+            src="https://my.spline.design/particles-c3JOIZMOLESX4NSfLnLP2bej/" 
+            frameBorder="0" 
+            title="Particle Sphere"
+            className="w-full h-full border-0 pointer-events-auto"
+            allow="autoplay; fullscreen"
+          />
         </div>
+
+        {/* Safety overlay to ensure zero watermark bleed */}
+        <div 
+          className="absolute bottom-0 right-0 w-28 h-10 sm:w-44 sm:h-14 pointer-events-none z-10"
+          style={{
+            background: 'linear-gradient(to top left, #05070c 80%, transparent 100%)'
+          }}
+        />
       </div>
     </div>
   );
